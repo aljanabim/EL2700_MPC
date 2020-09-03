@@ -16,10 +16,10 @@ class Controller(object):
         self.p3 = 0.7   # 0.03
         self.p4 = 0.75  # 0.04
 
-        self.p1 = 0.87
-        self.p2 = 0.93
-        self.p3 = 0.95
-        self.p4 = 0.96
+        self.p1 = 0.3835228702836023
+        self.p2 = 0.17181902877603022
+        self.p3 = 0.7107202262995429 + 0.0102769677271028j
+        self.p4 = 0.7107202262995429 - 0.0102769677271028j
 
         self.poles = [self.p1, self.p2, self.p3, self.p4]
         self.L = ca.DM.zeros(1, 4)

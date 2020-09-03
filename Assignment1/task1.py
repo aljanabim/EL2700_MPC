@@ -29,7 +29,7 @@ for i in range(len(p1)):
                                      time=10)
     t, y, u = sim_env.run([0, 0, 0, 0])
     x1 = y[0, :]
-    x3 = 180 / np.pi * y[3, :]
+    x3 = 180 / np.pi * y[2, :]
     if 9 < x1[-1] and x1[-1] < 10 and np.max(x3) < 10 and np.min(x3) > -10:
         print(f"Doing the {i}:th iteration")
         print(f"p1={p1[i]} | p2={p2[i]} | p3={p3[i]} | p4={p4[i]}")

@@ -1,8 +1,9 @@
 import casadi as ca
+import numpy as np
 
 
 class Pendulum(object):
-    def __init__(self, h=0.1):
+    def __init__(self, h=0.5):
         """
         Pendulum model class. 
 
@@ -41,8 +42,8 @@ class Pendulum(object):
         self.set_integrators()
         self.set_discrete_time_system()
 
-        print("Pendulum class initialized")
-        print(self)                         # You can comment this line
+        # print("Pendulum class initialized")
+        # print(self)                         # You can comment this line
 
     def __str__(self):
         return """                                                                  
@@ -117,6 +118,27 @@ class Pendulum(object):
         self.Bd = ca.Function('jac_u_Bd', [x, u], [ca.jacobian(
             self.Integrator_lin(x0=x, p=u)['xf'], u)])
 
+    def get_Ac(self):
+        Ac = np.zeros([4, 4])
+
+        self.mM = self.m + self.M
+        self.v1 = (self.mM) / (self.I * self.mM + self.m * self.M * self.l**2)
+        self.v2 = (self.I + self.m * self.l**2) / \
+            (self.I * self.mM + self.m * self.M * self.l**2)
+
+        Ac[0, 1] = 1
+        Ac[1, 1] = -self.bc * self.v2
+        Ac[1, 2] = self.m**2 * self.l**2 * self.g * \
+            self.v2 / (self.I + self.m * self.l**2)
+        Ac[1, 3] = -self.m * self.l * self.bp * \
+            self.v2 / (self.I + self.m * self.l**2)
+        Ac[2, 3] = 1
+        Ac[3, 1] = -self.m * self.l * self.bc * self.v1 / (self.m + self.M)
+        Ac[3, 2] = self.m * self.g * self.l * self.v1
+        Ac[3, 3] = -self.bp * self.v1
+
+        return Ac
+
     def pendulum_linear_dynamics(self, x, u, *_):
         """ 
         Pendulum continuous-time linearized dynamics.
@@ -147,7 +169,7 @@ class Pendulum(object):
         Ac[3, 1] = -self.m * self.l * self.bc * self.v1 / (self.m + self.M)
         Ac[3, 2] = self.m * self.g * self.l * self.v1
         Ac[3, 3] = -self.bp * self.v1
-
+        Bc[1, 0] = self.v2
         Bc[3, 0] = self.m * self.l * self.v1 / (self.m + self.M)
 
         # Store matrices as class variables
