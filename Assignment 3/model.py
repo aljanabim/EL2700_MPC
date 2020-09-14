@@ -2,11 +2,12 @@ import casadi as ca
 import numpy as np
 from filterpy.kalman import KalmanFilter
 
+
 class Pendulum(object):
     def __init__(self, h=0.1):
         """
         Pendulum model class. 
-        
+
         Describes the movement of a pendulum with mass 'm' attached to a cart
         with mass 'M'. All methods should return casadi.MX or casadi.DM variable 
         types.
@@ -35,7 +36,7 @@ class Pendulum(object):
         self.bp = 0.012
 
         # Linearize system around vertical equilibrium with no input
-        self.x_eq = [0,0,0,0]
+        self.x_eq = [0, 0, 0, 0]
         self.u_eq = 0
         self.Integrator_lin = None
         self.Integrator = None
@@ -83,35 +84,38 @@ class Pendulum(object):
         """
         Generate continuous time high-precision integrators.
         """
-        
+
         # Set CasADi variables
         x = ca.MX.sym('x', 4)
         u = ca.MX.sym('u', 1)
         w = ca.MX.sym('w', 1)
 
         # Integration method - integrator options an be adjusted
-        options = {"abstol" : 1e-5, "reltol" : 1e-9, "max_num_steps": 100, 
-                   "tf" : self.dt}
+        options = {"abstol": 1e-5, "reltol": 1e-9, "max_num_steps": 100,
+                   "tf": self.dt}
 
         # Create linear dynamics integrator
-        dae = {'x': x, 'ode': self.model(x,u,w), 'p':ca.vertcat(u,w)}
-        self.Integrator_lin = ca.integrator('integrator', 'cvodes', dae, options)
-        
+        dae = {'x': x, 'ode': self.model(x, u, w), 'p': ca.vertcat(u, w)}
+        self.Integrator_lin = ca.integrator(
+            'integrator', 'cvodes', dae, options)
+
         # Create nonlinear dynamics integrator
-        dae = {'x': x, 'ode': self.model_nl(x,u), 'p':ca.vertcat(u)}
+        dae = {'x': x, 'ode': self.model_nl(x, u), 'p': ca.vertcat(u)}
         self.Integrator = ca.integrator('integrator', 'cvodes', dae, options)
 
         if self.Ad_i is not None:
             # Create augmented system dynamics integrator
             x_ag = ca.MX.sym('x', 5)
-            dae = {'x': x_ag, 'ode': self.model_ag(x_ag,u), 'p':ca.vertcat(u)}
-            self.Integrator_ag = ca.integrator('integrator', 'cvodes', dae, options)
+            dae = {'x': x_ag, 'ode': self.model_ag(
+                x_ag, u), 'p': ca.vertcat(u)}
+            self.Integrator_ag = ca.integrator(
+                'integrator', 'cvodes', dae, options)
 
     def set_discrete_time_system(self):
         """
         Set discrete-time system matrices from linear continuous dynamics.
         """
-        
+
         # Check for integrator definition
         if self.Integrator_lin is None:
             print("Integrator_lin not defined. Set integrators first.")
@@ -121,26 +125,25 @@ class Pendulum(object):
         x = ca.MX.sym('x', 4)
         u = ca.MX.sym('u', 1)
         w = ca.MX.sym('w', 1)
-    
+
         # Jacobian of exact discretization
         self.Ad = ca.Function('jac_x_Ad', [x, u, w], [ca.jacobian(
-                            self.Integrator_lin(x0=x, p=ca.vertcat(u, w))['xf'], x)])
+            self.Integrator_lin(x0=x, p=ca.vertcat(u, w))['xf'], x)])
         self.Bd = ca.Function('jac_u_Bd', [x, u, w], [ca.jacobian(
-                            self.Integrator_lin(x0=x, p=ca.vertcat(u, w))['xf'], u)])
+            self.Integrator_lin(x0=x, p=ca.vertcat(u, w))['xf'], u)])
         self.Bw = ca.Function('jac_u_Bd', [x, u, w], [ca.jacobian(
-                            self.Integrator_lin(x0=x, p=ca.vertcat(u, w))['xf'], w)])
-        
+            self.Integrator_lin(x0=x, p=ca.vertcat(u, w))['xf'], w)])
 
         # C matrix does not depend on the state
         # TODO: put this in a better place later!
-        Cd_eq = ca.DM.zeros(1,4)
-        Cd_eq[0,0] = 1
-        Cd_eq[0,1] = 1
-        Cd_eq[0,2] = 1
-        Cd_eq[0,3] = 1
+        Cd_eq = ca.DM.zeros(1, 4)
+        Cd_eq[0, 0] = 1
+        Cd_eq[0, 1] = 1
+        Cd_eq[0, 2] = 1
+        Cd_eq[0, 3] = 1
 
         self.Cd_eq = Cd_eq
-    
+
     def set_augmented_discrete_system(self):
         """
         Pendulum dynamics with integral action.
@@ -156,17 +159,25 @@ class Pendulum(object):
         Bd_eq = self.Bd(self.x_eq, self.u_eq, self.w)
         Bw_eq = self.Bw(self.x_eq, self.u_eq, self.w)
 
-        # Instantiate augmented system
-        self.Ad_i = ca.DM.zeros(5,5)
-        self.Bd_i = ca.DM.zeros(5,1)
-        self.Bw_i = ca.DM.zeros(5,1)
-        self.Cd_i = ca.DM.zeros(1,5)
-        self.R_i = ca.DM.zeros(5,1)
+        # Instantiate augmented systemself.Ad_i = ca.DM.zeros(5, 5)
+        self.Bd_i = ca.DM.zeros(5, 1)
+        self.Bw_i = ca.DM.zeros(5, 1)
+        self.Cd_i = ca.DM.zeros(1, 5)
+        self.R_i = ca.DM.zeros(5, 1)
 
         # Populate matrices
-        # COMPLETE
+        self.Ad_i[0:3, 0:3] = Ad_eq
+        self.Ad_i[4, 0:3] = -self.dt * self.Cd_eq
+        self.Ad_i[4, 4] = 1
 
-    def pendulum_linear_dynamics(self, x, u, w):  
+        self.Bd_i[:, 0:3] = Bd_eq
+
+        self.R_i[:, 4] = self.dt
+        self.Bw_i[:, 0:3] = Bw_eq
+
+        self.Cd_i[:, 0:3] = self.Cd_eq
+
+    def pendulum_linear_dynamics(self, x, u, w):
         """ 
         Pendulum continuous-time linearized dynamics.
 
@@ -180,48 +191,51 @@ class Pendulum(object):
         :rtype: MX variable, 4x1
         """
 
-        Ac = ca.MX.zeros(4,4)
-        Bc = ca.MX.zeros(4,1)
-        Bwc = ca.MX.zeros(4,1)
+        Ac = ca.MX.zeros(4, 4)
+        Bc = ca.MX.zeros(4, 1)
+        Bwc = ca.MX.zeros(4, 1)
 
-        v1 = (self.m + self.M)/(self.I*(self.m + self.M) + self.m*self.M*self.l**2)
-        v2 = (self.I+self.m*self.l**2)/(self.I*(self.m + self.M) + self.m*self.M*self.l**2)
+        v1 = (self.m + self.M) / (self.I *
+                                  (self.m + self.M) + self.m * self.M * self.l**2)
+        v2 = (self.I + self.m * self.l**2) / (self.I *
+                                              (self.m + self.M) + self.m * self.M * self.l**2)
 
-        ### Build Ac matrix
+        # Build Ac matrix
         # First Row
-        Ac[0,1] = 1
+        Ac[0, 1] = 1
 
         # Second row
-        Ac[1,1] = -self.bc*v2
-        Ac[1,2] = self.m**2 * self.l**2 * self.g * v2 / (self.I + self.m*(self.l**2))
-        Ac[1,3] = -self.m * self.l * self.bp * v2 / (self.I + self.m*(self.l**2))
+        Ac[1, 1] = -self.bc * v2
+        Ac[1, 2] = self.m**2 * self.l**2 * self.g * \
+            v2 / (self.I + self.m * (self.l**2))
+        Ac[1, 3] = -self.m * self.l * self.bp * \
+            v2 / (self.I + self.m * (self.l**2))
 
         # Third row
-        Ac[2,3] = 1
-        
-        # Fourth row
-        Ac[3,1] = -self.m * self.l * self.bc * v1 /(self.m + self.M)
-        Ac[3,2] = self.m * self.g * self.l * v1
-        Ac[3,3] = -self.bp * v1
+        Ac[2, 3] = 1
 
-        ### Build Bc matrix
+        # Fourth row
+        Ac[3, 1] = -self.m * self.l * self.bc * v1 / (self.m + self.M)
+        Ac[3, 2] = self.m * self.g * self.l * v1
+        Ac[3, 3] = -self.bp * v1
+
+        # Build Bc matrix
         # Second Row
-        Bc[1,0] = v2
+        Bc[1, 0] = v2
 
         # Fourth row
-        Bc[3,0] = self.m * self.l * v1 / (self.m + self.M)
+        Bc[3, 0] = self.m * self.l * v1 / (self.m + self.M)
 
-        ### Build Bwc
-        Bwc[1,0] = -self.I*v2/(self.I + self.m*self.l**2); 
-        Bwc[3,0] = self.M*self.l*v1/(self.M+self.m);
+        # Build Bwc
+        Bwc[1, 0] = -self.I * v2 / (self.I + self.m * self.l**2)
+        Bwc[3, 0] = self.M * self.l * v1 / (self.M + self.m)
 
-
-        ### Store matrices as class variables
+        # Store matrices as class variables
         self.Ac = Ac
         self.Bc = Bc
-        self.Bwc = Bwc 
+        self.Bwc = Bwc
 
-        return Ac @ x + Bc @ u + Bwc @ w 
+        return Ac @ x + Bc @ u + Bwc @ w
 
     def pendulum_nonlinear_dynamics(self, x, u, *_):
         """
@@ -238,31 +252,34 @@ class Pendulum(object):
         x2 = x[1]
         x3 = x[2]
         x4 = x[3]
-         
+
         # dot(x2)
-        f1 = (1.0/ ( self.M + self.m - (self.m**2*self.l**2*ca.cos(x3)**2)/(self.I + self.m*self.l**2) ) ) * \
-             (u + ( (self.m*self.l**2*ca.cos(x3)**2)/(self.I + self.m*self.l**2) - 1)*self.w  
-              - self.bc*x2 
-              - self.m*self.l*x4**2*ca.sin(x3) 
-              + (self.m**2*self.l**2*self.g*ca.sin(x3)*ca.cos(x3))/(self.I + self.m*self.l**2) 
-              - (self.m*self.l*self.bp*x4*ca.cos(x3))/(self.I + self.m*self.l**2) 
-             )
+        f1 = (1.0 / (self.M + self.m - (self.m**2 * self.l**2 * ca.cos(x3)**2) / (self.I + self.m * self.l**2))) * \
+             (u + ((self.m * self.l**2 * ca.cos(x3)**2) / (self.I + self.m * self.l**2) - 1) * self.w
+              - self.bc * x2
+              - self.m * self.l * x4**2 * ca.sin(x3)
+              + (self.m**2 * self.l**2 * self.g * ca.sin(x3)
+                 * ca.cos(x3)) / (self.I + self.m * self.l**2)
+              - (self.m * self.l * self.bp * x4 * ca.cos(x3)) /
+                 (self.I + self.m * self.l**2)
+              )
 
         # dot(x4)
-        f2 = (1.0/ ( self.I + self.m*self.l**2 - (self.m**2*self.l**2*ca.cos(x3)**2)/(self.m + self.M) ) ) * \
+        f2 = (1.0 / (self.I + self.m * self.l**2 - (self.m**2 * self.l**2 * ca.cos(x3)**2) / (self.m + self.M))) * \
              (
-                 u*(self.m*self.l*ca.cos(x3))/(self.m+self.M) 
-                 + self.w*(self.M*self.l*ca.cos(x3))/(self.m+self.M) 
-                 - self.bp*x4 
-                 + self.m*self.l*self.g*ca.sin(x3) 
-                 - (self.m**2*self.l**2*x4**2*ca.sin(x3)*ca.cos(x3))/(self.m + self.M) 
-                 - (self.m*self.l*self.bc*x2*ca.cos(x3))/(self.m+self.M)
-             )
-        
-        dxdt = [ x2, f1, x4, f2 ]
+                 u * (self.m * self.l * ca.cos(x3)) / (self.m + self.M)
+                 + self.w * (self.M * self.l * ca.cos(x3)) / (self.m + self.M)
+                 - self.bp * x4
+                 + self.m * self.l * self.g * ca.sin(x3)
+                 - (self.m**2 * self.l**2 * x4**2 * ca.sin(x3)
+                    * ca.cos(x3)) / (self.m + self.M)
+                 - (self.m * self.l * self.bc * x2 *
+                    ca.cos(x3)) / (self.m + self.M)
+        )
+
+        dxdt = [x2, f1, x4, f2]
 
         return ca.vertcat(*dxdt)
-
 
     def pendulum_augmented_dynamics(self, x, u):
         """Augmented pendulum system dynamics
@@ -277,7 +294,13 @@ class Pendulum(object):
         # Disturbance:
         w = self.w
 
-        return 
+        self.Ad_i @ x + self.Bd_i @ u +
+
+        self.Bw_i
+        self.Cd_i
+        self.R_i
+
+        return
 
     def set_reference(self, ref):
         """
@@ -300,7 +323,7 @@ class Pendulum(object):
 
         self.x_eq = x_eq
         self.u_eq = u_eq
-        
+
     def get_discrete_system_matrices_at_eq(self):
         """
         Evaluate the discretized matrices at the equilibrium point
@@ -323,7 +346,6 @@ class Pendulum(object):
         """
         return self.Ad_i, self.Bd_i, self.Bw_i, self.Cd_i
 
-
     def continuous_time_linear_dynamics(self, x0, u):
         """
         Perform a time step iteration in continuous dynamics.
@@ -342,7 +364,7 @@ class Pendulum(object):
         out = self.Integrator(x0=x0, p=ca.vertcat(u, self.w))
         return out["xf"]
 
-    def discrete_time_dynamics(self,x0,u):
+    def discrete_time_dynamics(self, x0, u):
         """ 
         Performs a discrete time iteration step.
 
@@ -355,8 +377,8 @@ class Pendulum(object):
         """
 
         return self.Ad(self.x_eq, self.u_eq, self.w) @ x0 + \
-                self.Bd(self.x_eq, self.u_eq, self.w) @ u + \
-                self.Bw(self.x_eq, self.u_eq, self.w) @ self.w
+            self.Bd(self.x_eq, self.u_eq, self.w) @ u + \
+            self.Bw(self.x_eq, self.u_eq, self.w) @ self.w
 
     def enable_disturbance(self, w=0.01):
         """
@@ -370,12 +392,12 @@ class Pendulum(object):
         self.w = w
 
         # Re-generate dynamics
-        self.set_integrators()
+        # self.set_integrators() # TODO REENABLE FOR PART 2
         self.set_discrete_time_system()
         self.set_augmented_discrete_system()
 
     #===============================================#
-    #            Kalman Filter modules              # 
+    #            Kalman Filter modules              #
     #===============================================#
 
     def set_kf_params(self, C, Q, R):
@@ -389,25 +411,26 @@ class Pendulum(object):
         :param R: measurement noise
         :type R: numpy.array
         """
-        self.C_KF = C 
+        self.C_KF = C
         self.Q_KF = Q
         self.R_KF = R
 
-    def init_kf(self, x=np.array([[0,0,0,0]])):
+    def init_kf(self, x=np.array([[0, 0, 0, 0]])):
         """
         Initialize the Kalman Filter estimator.
         """
 
         # Initialize filter object
-        self.kf_estimator = KalmanFilter(dim_x=4, dim_z=np.size(self.C_KF,0), dim_u=2)
+        self.kf_estimator = KalmanFilter(
+            dim_x=4, dim_z=np.size(self.C_KF, 0), dim_u=2)
 
         Ad_eq = self.Ad(self.x_eq, self.u_eq, self.w)
         Bd_eq = self.Bd(self.x_eq, self.u_eq, self.w)
         Bw_eq = self.Bw(self.x_eq, self.u_eq, self.w)
 
-        B = ca.DM.zeros(4,2)
-        B[:,0] = Bd_eq
-        B[:,1] = Bw_eq
+        B = ca.DM.zeros(4, 2)
+        B[:, 0] = Bd_eq
+        B[:, 1] = Bw_eq
 
         # Set filter parameters
         self.kf_estimator.F = np.asarray(Ad_eq)
@@ -417,6 +440,5 @@ class Pendulum(object):
         self.kf_estimator.Q = self.Q_KF
         self.kf_estimator.R = self.R_KF
 
-
         # Set initial estimation
-        self.kf_estimator.x = x.T 
+        self.kf_estimator.x = x.T

@@ -3,8 +3,9 @@ import casadi as ca
 import matplotlib.pyplot as plt
 import time
 
+
 class EmbeddedSimEnvironment(object):
-    
+
     def __init__(self, model, dynamics, controller, time=100.0):
         """
         Embedded simulation environment. Simulates the syste given dynamics 
@@ -22,34 +23,35 @@ class EmbeddedSimEnvironment(object):
         self.model = model
         self.dynamics = dynamics
         self.controller = controller
-        self.total_sim_time = time # seconds
+        self.total_sim_time = time  # seconds
         self.dt = self.model.dt
         self.estimation_in_the_loop = False
 
-        # Plotting definitions 
-        self.plt_window = float("inf")    # running plot window, in seconds, or float("inf")
+        # Plotting definitions
+        # running plot window, in seconds, or float("inf")
+        self.plt_window = float("inf")
 
-    def run(self, x0=[0,0,0,0]):
+    def run(self, x0=[0, 0, 0, 0]):
         """
         Run simulator with specified system dynamics and control function.
         """
-        
+
         print("Running simulation....")
-        sim_loop_length = int(self.total_sim_time/self.dt) + 1 # account for 0th
+        sim_loop_length = int(self.total_sim_time /
+                              self.dt) + 1  # account for 0th
         t = np.array([0])
         y_vec = np.array([x0]).T
         u_vec = np.array([0])
-        
+
         # Start figure
-        fig, (ax1,ax2,ax3) = plt.subplots(3)
+        fig, (ax1, ax2, ax3) = plt.subplots(3)
         for i in range(sim_loop_length):
-            
 
             if self.estimation_in_the_loop is False:
                 try:
                     # Translate data to ca.DM
-                    x = ca.DM(np.size(y_vec,0),1).full()
-                    x =  np.array([y_vec[:,-1]]).T
+                    x = ca.DM(np.size(y_vec, 0), 1).full()
+                    x = np.array([y_vec[:, -1]]).T
 
                     # Get control input and obtain next state
                     u = self.controller(x)
@@ -62,27 +64,29 @@ class EmbeddedSimEnvironment(object):
             else:
                 try:
                     # Get measurement
-                    x = ca.DM(np.size(y_vec,0),1).full()
-                    x = np.array([y_vec[:,-1]]).T
-                    
-                    y = self.model.C_KF @ x[0:4,:] + np.random.uniform(-0.005, 0.005, (np.size(self.model.C_KF ,0),1))
+                    x = ca.DM(np.size(y_vec, 0), 1).full()
+                    x = np.array([y_vec[:, -1]]).T
 
+                    y = self.model.C_KF @ x[0:4, :] + \
+                        np.random.uniform(-0.005, 0.005,
+                                          (np.size(self.model.C_KF, 0), 1))
 
                     # Predict and Update
-                    self.model.kf_estimator.predict(ca.vertcat([u_vec[-1], self.model.w])) 
+                    self.model.kf_estimator.predict(
+                        ca.vertcat([u_vec[-1], self.model.w]))
                     self.model.kf_estimator.update(y)
                     x_kf = self.model.kf_estimator.x
-                    x_kf_pred = ca.DM(4,1).full()
+                    x_kf_pred = ca.DM(4, 1).full()
                     x_kf_pred = x_kf
-                    x_kf_pred_with_int = np.concatenate( (x_kf_pred, \
-                                                     np.array([x[4]])), axis=0)
+                    x_kf_pred_with_int = np.concatenate((x_kf_pred,
+                                                         np.array([x[4]])), axis=0)
 
                     # Get control input
                     u = self.controller(x_kf_pred_with_int)
-                   
+
                     # Propagate dynamics
                     x_next = self.dynamics(x, u)
-                    
+
                 except RuntimeError as e:
                     print("Uh oh, your simulator crashed due to unstable dynamics.\n \
                         Retry with new controller parameters.")
@@ -90,35 +94,41 @@ class EmbeddedSimEnvironment(object):
                     exit()
 
             # Store data
-            t = np.append(t,t[-1]+self.dt)
+            t = np.append(t, t[-1] + self.dt)
             y_vec = np.append(y_vec, np.array(x_next), axis=1)
             u_vec = np.append(u_vec, np.array(u))
 
             # Get plot window values:
             if self.plt_window != float("inf"):
-                l_wnd = 0 if int(i+1 - self.plt_window/self.dt) < 1 else int(i+1 - self.plt_window/self.dt)
-            else:  
+                l_wnd = 0 if int(
+                    i + 1 - self.plt_window / self.dt) < 1 else int(i + 1 - self.plt_window / self.dt)
+            else:
                 l_wnd = 0
 
             ax1.clear()
-            ax1.set_title("Pendulum on Cart - Ref: "+str(self.model.x_d)+" [m]")
-            ax1.plot( t[l_wnd:-1], y_vec[0,l_wnd:-1], 'r--', \
-                        t[l_wnd:-1], y_vec[1,l_wnd:-1], 'b--')
-            ax1.legend(["x1","x2"])
+            ax1.set_title("Pendulum on Cart - Ref: " +
+                          str(self.model.x_d) + " [m]")
+            ax1.plot(t[l_wnd:-1], y_vec[0, l_wnd:-1], 'r--',
+                     t[l_wnd:-1], y_vec[1, l_wnd:-1], 'b--')
+            ax1.legend(["x1", "x2"])
             ax1.set_ylabel("X1 [m] / X2 [m/s]")
+            ax1.grid()
 
             ax2.clear()
-            ax2.plot(t[l_wnd:-1], y_vec[2,l_wnd:-1], 'g--', \
-                        t[l_wnd:-1], y_vec[3,l_wnd:-1], 'k--')
-            ax2.legend(["x3","x4"])
-            ax2.set_ylabel("X3 [rad] / X4 [rad/s]")
+            ax2.plot(t[l_wnd:-1], y_vec[2, l_wnd:-1] * 180 / np.pi, 'g--',
+                     t[l_wnd:-1], y_vec[3, l_wnd:-1] * 180 / np.pi, 'k--')
+            ax2.legend(["x3", "x4"])
+            # ax2.set_ylabel("X3 [rad] / X4 [rad/s]")
+            ax2.set_ylabel("X3 [deg] / X4 [deg/s]")
+            ax2.grid()
 
             ax3.clear()
-            ax3.plot( t[l_wnd:-1], u_vec[l_wnd:-1], 'b--')
+            ax3.plot(t[l_wnd:-1], u_vec[l_wnd:-1], 'b--')
             ax3.set_xlabel("Time [s]")
             ax3.set_ylabel("Control [u]")
+            ax3.grid()
             plt.pause(0.01)
-            
+
         plt.show()
         return t, y_vec, u_vec
 
@@ -142,5 +152,3 @@ class EmbeddedSimEnvironment(object):
             exit()
 
         self.estimation_in_the_loop = value
-        
-
