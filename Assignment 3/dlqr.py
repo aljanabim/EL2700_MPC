@@ -3,21 +3,22 @@ import numpy as np
 import scipy.linalg
 from control.matlab import lqr
 
+
 class DLQR(object):
 
     def __init__(self, A, B, C,
-                       Q=ca.DM.eye(4), R=ca.DM.ones(1,1)):
+                 Q=ca.DM.eye(4), R=ca.DM.ones(1, 1)):
         """
         Discrete-time LQR class.
         """
 
         # System matrices
-        self.A = A 
+        self.A = A
         self.B = B
         self.C = C
-                
+
         self.Q = Q
-        self.R = R 
+        self.R = R
 
         self.K = None
         self.P = None
@@ -57,7 +58,6 @@ class DLQR(object):
         self.B = B
         self.C = C
 
-
     def get_lqr_gain(self, Q=None, R=None):
         """
         Get LQR feedback gain.
@@ -69,7 +69,7 @@ class DLQR(object):
         """
         A_np = np.asarray(self.A)
         B_np = np.asarray(self.B)
-        
+
         if Q is None:
             Q_np = np.asarray(self.Q)
         else:
@@ -80,17 +80,19 @@ class DLQR(object):
         else:
             R_np = R
 
-        P_np = np.matrix(scipy.linalg.solve_discrete_are(A_np, 
-                              B_np, Q_np, R_np))
+        P_np = np.matrix(scipy.linalg.solve_discrete_are(A_np,
+                                                         B_np, Q_np, R_np))
         K_np = np.matrix(scipy.linalg.inv(B_np.T @ P_np @ B_np
-                              + R_np)@(B_np.T @ P_np @ A_np))
-        
-        self.P = ca.DM.zeros(4,4).full()        
+                                          + R_np)@(B_np.T @ P_np @ A_np))
+        # print('K_np=', K_np)
+        # input()
+
+        self.P = ca.DM.zeros(4, 4).full()
         self.P = P_np
 
-        self.K = ca.DM.zeros(1,4).full()
+        self.K = ca.DM.zeros(1, 4).full()
         self.K = K_np
-        
+
         return self.K, self.P
 
     def get_feedforward_gain(self, K=None):
@@ -103,11 +105,12 @@ class DLQR(object):
 
         if K is None and self.K is not None:
             K = self.K
-        elif K is None:  
+        elif K is None:
             print("Please provide an LQR gain K.")
-            exit()       
+            exit()
 
-        self.lr = ca.inv(self.C @ ca.inv(ca.DM.eye(self.A.size1())-(self.A-self.B @ K)) @ self.B)
+        self.lr = ca.inv(self.C @ ca.inv(
+            ca.DM.eye(self.A.size1()) - (self.A - self.B @ K)) @ self.B)
         return self.lr
 
     def feedback(self, x, K=None):
@@ -123,7 +126,7 @@ class DLQR(object):
         if K is None and self.K is not None:
             K = self.K
 
-        u = - K @ x 
+        u = - K @ x
         return u
 
     def feedfwd_feedback(self, x, r=10.0, K=None, lr=None):
@@ -153,8 +156,8 @@ class DLQR(object):
         :type li: float
         """
         self.l_i = li
-    
-    def set_lr(self,lr):
+
+    def set_lr(self, lr):
         """
         Set lr gain.
 
@@ -163,7 +166,7 @@ class DLQR(object):
         """
         self.lr = lr
 
-    def set_lqr_feedback(self,K):
+    def set_lqr_feedback(self, K):
         """
         Set LQR feedback gain.
 
@@ -172,7 +175,7 @@ class DLQR(object):
         """
         self.K = K
 
-    def lqr_ff_fb_integrator(self, x, r=10.0, K=None, lr=None,li=None):
+    def lqr_ff_fb_integrator(self, x, r=10.0, K=None, lr=None, li=None):
         """
         State feedback LQR with feedforward gain and integral action.
 
@@ -183,10 +186,11 @@ class DLQR(object):
         :param K: LQR feedback gain
         :type K: casadi.DM, 1x4
         """
-        
-        x_t = x[0:4,:]
-        i = x[4,:]
 
+        x_t = x[0:4, :]
+        i = x[4, :]
+        # print(type(K), type(self.K))
+        # input()
         # Argument checks
         if K is None and self.K is not None:
             K = self.K
@@ -198,9 +202,11 @@ class DLQR(object):
         elif lr is None:
             print("Please set feedforward gain.")
 
-        _K = K[0,0:4] 
-        _li = K[0,4]
+        # print(K.shape)
+        _K = K[0, 0:4]
+        _li = K[0, 4]
+        # input()
 
         # Fill the correct control law below
-        u = 0
+        u = -_K@x_t - _li * i + lr * r
         return u

@@ -158,24 +158,30 @@ class Pendulum(object):
         Ad_eq = self.Ad(self.x_eq, self.u_eq, self.w)
         Bd_eq = self.Bd(self.x_eq, self.u_eq, self.w)
         Bw_eq = self.Bw(self.x_eq, self.u_eq, self.w)
+        Cd_eq = ca.DM.zeros(1, 4)
 
-        # Instantiate augmented systemself.Ad_i = ca.DM.zeros(5, 5)
+        # Instantiate augmented system
+        self.Ad_i = ca.DM.zeros(5, 5)
         self.Bd_i = ca.DM.zeros(5, 1)
         self.Bw_i = ca.DM.zeros(5, 1)
         self.Cd_i = ca.DM.zeros(1, 5)
         self.R_i = ca.DM.zeros(5, 1)
 
         # Populate matrices
-        self.Ad_i[0:3, 0:3] = Ad_eq
-        self.Ad_i[4, 0:3] = -self.dt * self.Cd_eq
+        self.Ad_i[0:4, 0:4] = Ad_eq
+        self.Ad_i[4, 0:4] = -self.dt * self.Cd_eq
         self.Ad_i[4, 4] = 1
 
-        self.Bd_i[:, 0:3] = Bd_eq
+        self.Bd_i[0:4, :] = Bd_eq
 
-        self.R_i[:, 4] = self.dt
-        self.Bw_i[:, 0:3] = Bw_eq
+        self.R_i[4, 0] = self.dt
+        self.Bw_i[0:4, :] = Bw_eq
 
-        self.Cd_i[:, 0:3] = self.Cd_eq
+        Cd_eq[0, 0] = 1
+        Cd_eq[0, 1] = 1
+        Cd_eq[0, 2] = 1
+        Cd_eq[0, 3] = 1
+        self.Cd_i[:, 0:4] = self.Cd_eq
 
     def pendulum_linear_dynamics(self, x, u, w):
         """ 
@@ -294,13 +300,9 @@ class Pendulum(object):
         # Disturbance:
         w = self.w
 
-        self.Ad_i @ x + self.Bd_i @ u +
+        next_state = self.Ad_i @ x + self.Bd_i @ u + self.R_i @ 10 + self.Bw_i@w
 
-        self.Bw_i
-        self.Cd_i
-        self.R_i
-
-        return
+        return next_state
 
     def set_reference(self, ref):
         """
@@ -392,7 +394,7 @@ class Pendulum(object):
         self.w = w
 
         # Re-generate dynamics
-        # self.set_integrators() # TODO REENABLE FOR PART 2
+        self.set_integrators()  # TODO REENABLE FOR PART 2
         self.set_discrete_time_system()
         self.set_augmented_discrete_system()
 
