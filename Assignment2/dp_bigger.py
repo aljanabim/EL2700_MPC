@@ -56,13 +56,13 @@ class BiggerGridder(object):
         # Create state-space grid and fill epsilon variables if needed
         # Hint: take inspiration from Gridder class
         eps = None
-        self.x1 = np.linspace(0, 10, 5)
-        self.x2 = np.linspace(0, 4, 5)
+        self.x1 = np.linspace(-2, 10, 3)
+        self.x2 = np.linspace(-2, 3, 3)
 
-        eps = np.pi / 20
-        self.x3 = np.linspace(-np.pi / 2 + eps, np.pi / 2 - eps, 5)
-        # self.x4 = np.linspace(-np.pi / 4 + eps, np.pi / 4 - eps, 5)
-        self.x4 = np.linspace(-np.pi / 2, np.pi / 2, 5)
+        eps = np.pi / 10
+        self.x3 = np.linspace(-np.pi / 2 + eps, np.pi / 2 - eps, 3)
+        self.x4 = np.linspace(-np.pi / 2 + eps, np.pi / 2 - eps, 3)
+        # self.x4 = np.linspace(-np.pi / 2, np.pi / 2, 5)
 
         self.U = np.zeros((len(self.x1), len(self.x2),
                            len(self.x3), len(self.x4),
@@ -107,7 +107,7 @@ class BiggerGridder(object):
         # Hint: take inspiration from Gridder class and from the Assignment PDF
 
         self.Jstage = ca.Function('Jstage', [x, Q, u, R],
-                                  [(x.T - self.xr.T) @ Q @ (x - self.xr) + u.T @ R @ u])
+                                  [(x.T - self.xr.T) @ self.Q @ (x - self.xr) + u.T @ R @ u])
 
         self.Jtogo = ca.Function('Jtogo', [x],
                                  [(x.T - self.xr.T) @ self.Q @ (x - self.xr)])

@@ -52,8 +52,8 @@ print("A: ", A, "\nB: ", B, "\nC: ", C)
 
 ctl = BiggerGridder(model=cart_pendulum,
                     # TODO: You might want to tune this
-                    Q=np.diag([1, 1, 10, 1000]),
-                    R=0.01,                # TODO: You might want to tune this
+                    Q=np.diag([1, 100, 1, 100]),
+                    R=0.1,                # TODO: You might want to tune this
                     sim_time=5)
 ctl.set_reference()
 ctl.set_controller()
