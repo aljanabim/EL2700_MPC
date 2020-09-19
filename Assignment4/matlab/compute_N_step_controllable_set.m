@@ -60,7 +60,7 @@ X_constraint  = Polyhedron( 'A', Hx, 'b', hx);
 % invariant_set_type = 1 => Xf is the invariant set for the closed-loop
 %                        dynamics under the infinite-horizon LQR control
 
-invariant_set_type = 'lqr';
+invariant_set_type = 'zero';
 N    = [5, 10, 20];
 sys.u.min = -5;
 sys.u.max = 5;
