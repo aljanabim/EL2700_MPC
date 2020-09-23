@@ -3,6 +3,8 @@ import casadi as ca
 import matplotlib.pyplot as plt
 import time
 
+plt.style.use('seaborn-darkgrid')
+
 class EmbeddedSimEnvironment(object):
     
     def __init__(self, model, dynamics, controller, time=100.0):

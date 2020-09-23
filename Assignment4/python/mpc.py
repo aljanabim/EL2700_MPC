@@ -20,7 +20,8 @@ class MPC(object):
 
     def __init__(self, model, dynamics,
                  horizon=10, Q=None, P=None, R=None,
-                 ulb=None, uub=None, xlb=None, xub=None, terminal_constraint=None,
+                 ulb=None, uub=None, xlb=None, xub=None, terminal_constraint=False,
+                 terminal_constraint_lb = None,terminal_constraint_ub = None,
                  solver_opts=None
                 ):
 
@@ -147,10 +148,10 @@ class MPC(object):
         obj += self.terminal_cost(opt_var['x', self.Nt] - x0_ref, self.P)
 
         # Terminal contraint
-        if terminal_constraint is not None:
+        if terminal_constraint:
             con_ineq.append(opt_var['x', self.Nt] - x0_ref)
-            con_ineq_lb.append(np.full((self.Nx,), - terminal_constraint))
-            con_ineq_ub.append(np.full((self.Nx,), terminal_constraint))
+            con_ineq_lb.append(np.full((self.Nx,), terminal_constraint_lb))
+            con_ineq_ub.append(np.full((self.Nx,), terminal_constraint_ub))
 
         # Equality constraints bounds are 0 (they are equality constraints), 
         # -> Refer to CasADi documentation
@@ -267,6 +268,10 @@ class MPC(object):
     def mpc_controller(self, x0, u0=None):
 
         x_pred, u_pred = self.solve_mpc(x0)
+
+        # print("Predicted X: ", x_pred)
+        # print("Predicted U: ", u_pred)
+        # exit()
 
         return u_pred[0]
 
